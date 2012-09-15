@@ -1,0 +1,4 @@
+#!/Users/tallevy/Desktop/Disorganized/scripts/my_new_env/bin/python
+
+from scrapy.cmdline import execute
+execute()
