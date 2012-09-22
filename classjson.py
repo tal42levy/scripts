@@ -1,11 +1,58 @@
+import time
 import requests
+import sqlite3
 
 currTerm = "20123"
 depUrl = "http://web-app.usc.edu/ws/soc/api/depts/"
 baseClassUrl = "http://web-app.usc.edu/ws/soc/api/classes/"
+dbUrl = "example.db"
 deps = []
 courses = []
 
+def add_to_db():
+	conn = sqlite3.connect(dbUrl)
+	c = conn.cursor()
+
+	#DELETE THIS LATER
+	c.execute('drop table departments')
+	c.execute('drop table courses')
+	c.execute('drop table sections')
+	c.execute('drop table instructors')
+
+	c.execute('Create table if not exists departments (id integer primary key, code text, name text)')
+	c.execute('create table if not exists courses (id integer primary key, code text, department_id integer, title text, desc blob, units integer)')
+	c.execute('create table if not exists sections (id integer primary key, course_id integer, code text, sect text, start text, \
+		end text, days text, reg integer, seats integer, instructor_ids string, loc text, dclear boolean)')
+	c.execute('create table if not exists instructors (id integer primary key, name text)')
+
+	for dep in deps:
+		c.execute('Insert into departments(code, name) values (?, ?)', (dep['code'], dep['name']))
+
+	for course in courses:
+		c.execute('select id from departments where code = ?', [course['department']])
+		row = c.fetchone()
+		print row
+		data = (course['code'], course['title'], course['desc'], course['units'], row[0])
+		print data
+		c.execute('insert into courses(code, title, desc, units, department_id) values (?, ?, ?, ?, ?)', data)
+		c.execute('select id from courses where code = ?', (course['code'],))
+		code = c.fetchone()[0]
+		for section in course['sections']:
+			print section
+			instids = []
+			for ins in section['instructor']:
+				c.execute('select * from instructors where name = ?', (ins,))
+				inst = c.fetchone()
+				if not (inst):
+					c.execute('insert into instructors (name) values (?)', (section['instructor']))
+					c.execute('select * from instructors where name = ?', (ins,))
+					inst = c.fetchone()
+				instids.append(inst[1])
+			c.execute('insert into sections(code, course_id, sect, start, end, days, reg, seats, instructor_id, loc, dclear) values \
+				(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (section['code'], code, section['secType'], section['startTime'], section['endTime'], \
+					section['days'], section['reg'], section['seats'], ' ,'.join(inst[0]), section['loc'], section['dclear']))
+
+	conn.commit()
 class DepItem(dict):
 	code = []
 	name = []
@@ -14,9 +61,9 @@ class DepItem(dict):
 class ClassItem(dict):
 	department = []
 	code = []
-	title = []
-	desc = []
-	units = []
+	title = ''
+	desc = ""
+	units = ''
 	sections = []
 
 class SectionItem(dict):
@@ -67,10 +114,11 @@ def processSection(sec, course):
 		section['days'] = ['TBD']
 	try:
 		sec['instructor']['first_name']
-		section['instructor'].append(sec['instructor']['first_name'] + ' ' + sec['instructor']['first_name'])
+		section['instructor'].append(sec['instructor']['first_name'] + ' ' + sec['instructor']['last_name'])
 	except TypeError:
 		for instructor in section['instructor']:
-			section['instructor'].append(sec['instructor']['first_name'] + ' ' + sec['instructor']['first_name'])
+			section['instructor'].append(sec['instructor']['first_name'] + ' ' + sec['instructor']['last_name'])
+	return section
 
 def processDepartment(department):
 	if (department['type'] == "Y" or department['type'] == []):
@@ -81,7 +129,6 @@ def processDepartment(department):
 			deps.append(processDepartment(deplist))
 		except TypeError:
 			for d in deplist:
-				print d
 				try:
 					deps = deps + (processDepartment(d))
 				except TypeError:
@@ -96,9 +143,12 @@ def processCourse(course, depcode):
 	co = ClassItem()
 	cdata = course['CourseData']
 	co['department'] = depcode
-	co['code'] = course['PublishedCourseID']
+	co['code'] = course['PublishedCourseID'].split('-')[1]
 	co['title'] = cdata['title']
-	co['desc'] = cdata['description']
+	if cdata['description']:
+		co['desc'] = cdata['description']
+	else: 
+		co['desc'] = ""
 	co['units'] = cdata['units']
 	secdata = cdata['SectionData']
 	co['sections'] = []
@@ -126,10 +176,10 @@ for department in deps:
 	coursedata = clr['OfferedCourses']['course']
 	try:
 		for course in coursedata:
-			print course['PublishedCourseID']
 			courses.append(processCourse(course, department['code']))
 	except TypeError:
 		print coursedata['PublishedCourseID']
 		courses.append(processCourse(coursedata, department['code']))
+add_to_db()
 print courses
 

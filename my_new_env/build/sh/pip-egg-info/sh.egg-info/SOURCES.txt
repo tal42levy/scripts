@@ -1,0 +1,5 @@
+sh.py
+pip-egg-info/sh.egg-info/PKG-INFO
+pip-egg-info/sh.egg-info/SOURCES.txt
+pip-egg-info/sh.egg-info/dependency_links.txt
+pip-egg-info/sh.egg-info/top_level.txt
