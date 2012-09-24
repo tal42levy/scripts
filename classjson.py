@@ -48,9 +48,9 @@ def add_to_db():
 					c.execute('select * from instructors where name = ?', (ins,))
 					inst = c.fetchone()
 				instids.append(inst[1])
-			c.execute('insert into sections(code, course_id, sect, start, end, days, reg, seats, instructor_id, loc, dclear) values \
-				(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (section['code'], code, section['secType'], section['startTime'], section['endTime'], \
-					section['days'], section['reg'], section['seats'], ' ,'.join(inst[0]), section['loc'], section['dclear']))
+			c.execute('insert into sections(code, course_id, sect, start, end, days, reg, seats, instructor_ids, loc, dclear) values \
+				(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (section['code'], code, section['secType'], section['startTime'], section['endTime'], \
+					''.join(section['days']), section['reg'], section['seats'], ' ,'.join(instids), section['location'], section['dclear']))
 
 	conn.commit()
 class DepItem(dict):
@@ -93,10 +93,19 @@ def processSection(sec, course):
 	except KeyError:
 		section['startTime'] = 'TBA'
 		section['endTime'] = 'TBA'
+
+	if not isinstance(section['endTime'], str):
+		section['endTime'] = section['endTime'][0]
+	if not isinstance(section['startTime'], str):
+		section['startTime'] = section['startTime'][0]
 	try:
 		section['location'] = sec['location']
 	except KeyError:
 		section['location'] = 'TBD'
+	if not section['location']:
+		section['location'] = 'TBD'
+	if not isinstance(section['location'], str):
+		section['location'] = section['location'][0]
 	section['seats'] = sec['spaces_available']
 	section['reg'] = sec['number_registered']
 	section['days'] = []
